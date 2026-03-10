@@ -7,8 +7,9 @@ Full-stack demo of a production-style GenAI/ML architecture:
 ## 1) Architecture
 
 - `frontend` (React + Vite): dashboard, form-driven prediction, charts, and forecast table
-- `backend` (Node.js + Express): API gateway with clean route/controller/service layers
+- `backend` (legacy backend copy): original Express API location retained for reference
 - `ml-service` (Python + Flask + scikit-learn): loads retail sales data, trains linear regression, serves predictions/analytics
+- repository root: SnapDeploy-compatible Node.js backend entrypoint
 
 ## 2) Features Implemented
 
@@ -43,21 +44,18 @@ If this file is not present, the app auto-generates a synthetic retail dataset w
 ## 4) Project Structure
 
 ```text
-.
-├─ backend
-│  ├─ controllers/forecast.controller.js
-│  ├─ routes/predict.routes.js
-│  ├─ routes/sales.routes.js
-│  ├─ services/ml.service.js
-│  └─ server.js
-├─ frontend
-│  ├─ src/components/ForecastForm.jsx
-│  ├─ src/components/SalesChart.jsx
-│  ├─ src/pages/Dashboard.jsx
-│  ├─ src/pages/Forecast.jsx
-│  └─ src/App.jsx
-└─ ml-service
-   └─ app.py
+project-root/
+package.json
+package-lock.json
+server.js
+config/
+controllers/
+models/
+routes/
+services/
+backend/
+frontend/
+ml-service/
 ```
 
 ## 5) Run Locally
@@ -80,10 +78,9 @@ Runs on `http://localhost:8000`.
 ### B) Start Backend
 
 ```bash
-cd backend
 npm install
 copy .env.example .env
-npm run dev
+npm start
 ```
 
 Runs on `http://localhost:5000`.
@@ -135,7 +132,7 @@ GET /api/sales-history?item=Jacket&months=24
 
 ## 8) Deploy on Render
 
-This repo now includes a [`render.yaml`](./render.yaml) blueprint for a three-service deployment:
+This repo includes a [`render.yaml`](./render.yaml) blueprint for a three-service deployment:
 
 - `retail-demand-frontend` as a static site
 - `retail-demand-backend` as a Node web service
@@ -155,3 +152,22 @@ Deployment notes:
 - The frontend accepts either `https://your-backend-host` or `https://your-backend-host/api` for `VITE_API_BASE_URL`.
 - The ML service now honors `PORT`, which managed platforms like Render inject automatically.
 - If you want production-grade Python serving later, swap `python app.py` for Gunicorn and add it to `requirements.txt`.
+
+## 9) Deploy on SnapDeploy
+
+SnapDeploy expects the deployable Node service to be present at the repository root. This repo now exposes the backend from the root with:
+
+- `package.json`
+- `server.js`
+- `routes/`
+- `controllers/`
+- `models/`
+- `config/`
+
+Required backend environment variables:
+
+- `PORT`
+- `ML_SERVICE_URL`
+- `CORS_ORIGIN`
+
+The current backend does not use MongoDB, Cloudinary, or JWT-based authentication, so there are no required `MONGO_*`, `CLOUDINARY_*`, or `JWT_*` variables for this project.
