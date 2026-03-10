@@ -1,7 +1,19 @@
 import axios from "axios";
 
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL;
+
+  if (!configuredBaseUrl) {
+    return "http://localhost:5000/api";
+  }
+
+  return configuredBaseUrl.endsWith("/api")
+    ? configuredBaseUrl
+    : `${configuredBaseUrl.replace(/\/+$/, "")}/api`;
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api",
+  baseURL: resolveApiBaseUrl(),
   timeout: 15000
 });
 

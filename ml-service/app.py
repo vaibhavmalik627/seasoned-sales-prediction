@@ -423,5 +423,6 @@ def analytics():
 
 
 if __name__ == "__main__":
-    flask_port = int(os.getenv("FLASK_PORT", "8000"))
+    # Prefer the platform-assigned PORT for managed deployments.
+    flask_port = int(os.getenv("PORT", os.getenv("FLASK_PORT", "8000")))
     app.run(host="0.0.0.0", port=flask_port, debug=False)

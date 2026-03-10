@@ -133,3 +133,25 @@ GET /api/sales-history?item=Jacket&months=24
 - Forecasting is performed at daily granularity and aggregated to monthly demand.
 - PostgreSQL was kept optional; this demo uses in-memory dataframe processing for fast setup.
 
+## 8) Deploy on Render
+
+This repo now includes a [`render.yaml`](./render.yaml) blueprint for a three-service deployment:
+
+- `retail-demand-frontend` as a static site
+- `retail-demand-backend` as a Node web service
+- `retail-demand-ml-service` as a Python web service
+
+Steps:
+
+1. Push the repo to GitHub.
+2. In Render, create a new Blueprint instance from the repo.
+3. Render will provision all 3 services and wire these env vars automatically:
+   - `VITE_API_BASE_URL`
+   - `ML_SERVICE_URL`
+   - `CORS_ORIGIN`
+
+Deployment notes:
+
+- The frontend accepts either `https://your-backend-host` or `https://your-backend-host/api` for `VITE_API_BASE_URL`.
+- The ML service now honors `PORT`, which managed platforms like Render inject automatically.
+- If you want production-grade Python serving later, swap `python app.py` for Gunicorn and add it to `requirements.txt`.

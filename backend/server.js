@@ -9,8 +9,13 @@ dotenv.config();
 
 const app = express();
 const port = Number(process.env.PORT || 5000);
+const corsOrigin = process.env.CORS_ORIGIN || "*";
 
-app.use(cors());
+app.use(
+  cors({
+    origin: corsOrigin === "*" ? true : corsOrigin.split(",").map((origin) => origin.trim()),
+  })
+);
 app.use(express.json());
 app.use(morgan("dev"));
 
