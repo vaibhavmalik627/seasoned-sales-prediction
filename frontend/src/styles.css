@@ -68,7 +68,7 @@ h3 {
 }
 
 .topbar-compact {
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   min-height: 72px;
 }
@@ -2047,6 +2047,8 @@ td {
 
 .app-nav {
   align-items: center;
+  justify-content: flex-start;
+  flex: 1 1 auto;
 }
 
 .content {
@@ -2058,7 +2060,7 @@ td {
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   width: 100%;
 }
 
@@ -2066,6 +2068,7 @@ td {
   display: flex;
   align-items: center;
   gap: 0.8rem;
+  margin-left: auto;
   padding: 0.45rem 0.55rem 0.45rem 0.9rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
