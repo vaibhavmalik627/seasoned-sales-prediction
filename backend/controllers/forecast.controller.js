@@ -1,8 +1,12 @@
 import {
+  fetchAccuracy,
   fetchAnalytics,
   fetchCatalog,
   fetchForecast,
+  fetchReorderRecommendation,
+  fetchRiskDashboard,
   fetchSalesHistory,
+  uploadDataset,
   predictFromModel
 } from "../services/ml.service.js";
 
@@ -62,6 +66,7 @@ export async function predictDemand(req, res, next) {
     const item = pickItem(req.body);
     const month = toValidMonth(req.body?.month);
     const year = toNumber(req.body?.year, new Date().getFullYear());
+    const holidayBoost = Math.max(0, Math.min(toNumber(req.body?.holiday_boost, 0), 50));
     const store = req.body?.store || null;
 
     if (!item || !month) {
@@ -74,6 +79,7 @@ export async function predictDemand(req, res, next) {
       item,
       month,
       year,
+      holiday_boost: holidayBoost,
       store
     });
 
@@ -90,6 +96,7 @@ export async function getForecast(req, res, next) {
     const startMonth = toValidMonth(req.query?.start_month) || now.getMonth() + 1;
     const startYear = toNumber(req.query?.start_year, now.getFullYear());
     const horizon = Math.max(1, Math.min(toNumber(req.query?.horizon, 6), 12));
+    const holidayBoost = Math.max(0, Math.min(toNumber(req.query?.holiday_boost, 0), 50));
     const store = req.query?.store || null;
 
     if (!item) {
@@ -103,7 +110,8 @@ export async function getForecast(req, res, next) {
       store,
       start_month: startMonth,
       start_year: startYear,
-      horizon
+      horizon,
+      holiday_boost: holidayBoost
     });
 
     res.json(forecast);
@@ -139,10 +147,115 @@ export async function getAnalytics(req, res, next) {
   }
 }
 
+export async function getAccuracy(req, res, next) {
+  try {
+    const item = pickItem(req.query);
+    const store = req.query?.store || null;
+    const months = Math.max(3, Math.min(toNumber(req.query?.months, 6), 12));
+
+    if (!item) {
+      const error = new Error("`item` (or `product`) is required for /accuracy.");
+      error.status = 400;
+      throw error;
+    }
+
+    const accuracy = await fetchAccuracy({
+      item,
+      store,
+      months
+    });
+
+    res.json(accuracy);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getCatalog(req, res, next) {
   try {
     const catalog = await fetchCatalog();
     res.json(catalog);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getRiskDashboard(req, res, next) {
+  try {
+    const now = new Date();
+    const month = toValidMonth(req.query?.month) || now.getMonth() + 1;
+    const year = toNumber(req.query?.year, now.getFullYear());
+    const currentStock = Math.max(0, toNumber(req.query?.current_stock, 250));
+    const leadTimeDays = Math.max(1, Math.min(toNumber(req.query?.lead_time_days, 14), 180));
+    const holidayBoost = Math.max(0, Math.min(toNumber(req.query?.holiday_boost, 0), 50));
+    const store = req.query?.store || null;
+
+    const dashboard = await fetchRiskDashboard({
+      month,
+      year,
+      current_stock: currentStock,
+      lead_time_days: leadTimeDays,
+      holiday_boost: holidayBoost,
+      store
+    });
+
+    res.json(dashboard);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function postDataset(req, res, next) {
+  try {
+    const csvContent = String(req.body?.csv_content || "");
+    const fileName = req.body?.file_name || "uploaded.csv";
+
+    if (!csvContent.trim()) {
+      const error = new Error("CSV content is required.");
+      error.status = 400;
+      throw error;
+    }
+
+    const uploadResult = await uploadDataset({
+      csv_content: csvContent,
+      file_name: fileName
+    });
+
+    res.json(uploadResult);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getReorderRecommendation(req, res, next) {
+  try {
+    const item = pickItem(req.body);
+    const month = toValidMonth(req.body?.month);
+    const year = toNumber(req.body?.year, new Date().getFullYear());
+    const currentStock = Math.max(0, toNumber(req.body?.current_stock, 0));
+    const leadTimeDays = Math.max(1, Math.min(toNumber(req.body?.lead_time_days, 14), 180));
+    const serviceLevel = Math.min(0.99, Math.max(0.5, Number(req.body?.service_level ?? 0.8)));
+    const holidayBoost = Math.max(0, Math.min(toNumber(req.body?.holiday_boost, 0), 50));
+    const store = req.body?.store || null;
+
+    if (!item || !month) {
+      const error = new Error("`product` (or `item`) and a valid `month` are required.");
+      error.status = 400;
+      throw error;
+    }
+
+    const recommendation = await fetchReorderRecommendation({
+      item,
+      month,
+      year,
+      current_stock: currentStock,
+      lead_time_days: leadTimeDays,
+      service_level: serviceLevel,
+      holiday_boost: holidayBoost,
+      store
+    });
+
+    res.json(recommendation);
   } catch (error) {
     next(error);
   }

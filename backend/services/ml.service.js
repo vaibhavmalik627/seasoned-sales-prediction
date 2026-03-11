@@ -27,6 +27,14 @@ function toServiceError(error) {
   return new Error(error.message || "Unknown ML service failure");
 }
 
+function toMissingAccuracyError() {
+  const wrappedError = new Error(
+    "The running ML service does not support /accuracy yet. Restart the local ml-service from this repo and try again."
+  );
+  wrappedError.status = 503;
+  return wrappedError;
+}
+
 export async function predictFromModel(payload) {
   try {
     const { data } = await mlClient.post("/predict", payload);
@@ -57,6 +65,45 @@ export async function fetchSalesHistory(params) {
 export async function fetchAnalytics() {
   try {
     const { data } = await mlClient.get("/analytics");
+    return data;
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
+export async function fetchAccuracy(params) {
+  try {
+    const { data } = await mlClient.get("/accuracy", { params });
+    return data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      throw toMissingAccuracyError();
+    }
+    throw toServiceError(error);
+  }
+}
+
+export async function fetchReorderRecommendation(payload) {
+  try {
+    const { data } = await mlClient.post("/reorder-recommendation", payload);
+    return data;
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
+export async function fetchRiskDashboard(params) {
+  try {
+    const { data } = await mlClient.get("/risk-dashboard", { params });
+    return data;
+  } catch (error) {
+    throw toServiceError(error);
+  }
+}
+
+export async function uploadDataset(payload) {
+  try {
+    const { data } = await mlClient.post("/dataset", payload);
     return data;
   } catch (error) {
     throw toServiceError(error);

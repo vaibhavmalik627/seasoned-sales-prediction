@@ -1,173 +1,166 @@
-# Seasonal Demand Forecasting Tool for Retail
+# Seasonal Demand Forecasting Tool
 
-Full-stack demo of a production-style GenAI/ML architecture:
+An AI-assisted retail planning platform for seasonal demand forecasting, inventory decisions, data quality checks, and natural-language analytics.
 
-`React Frontend -> Express API -> Python ML Service -> Forecast Response -> UI`
+## Stack
 
-## 1) Architecture
+- `frontend`: React + Vite
+- `backend`: Node.js + Express
+- `ml-service`: Flask + scikit-learn
+- `database`: MongoDB for store accounts and AI chat history
 
-- `frontend` (React + Vite): dashboard, form-driven prediction, charts, and forecast table
-- `backend` (legacy backend copy): original Express API location retained for reference
-- `ml-service` (Python + Flask + scikit-learn): loads retail sales data, trains linear regression, serves predictions/analytics
-- repository root: SnapDeploy-compatible Node.js backend entrypoint
+## Key Capabilities
 
-## 2) Features Implemented
+- store account signup and login
+- MongoDB-backed retail store auth and session handling
+- dataset upload for custom retail sales history
+- demand forecasting with confidence ranges
+- reorder and risk planning
+- accuracy backtesting
+- AI-generated forecast explanations
+- AI inventory advisor
+- natural-language analytics queries
+- AI data quality review after CSV upload
+- AI demand storytelling
+- AI forecast report generation with PDF export
+- conversational forecast assistant with persisted chat history
+- dedicated `AI Workspace` page that aggregates the AI features
 
-- `POST /predict`: predict seasonal demand by product + month (+ optional store/year)
-- `GET /sales-history`: monthly historical sales for charting
-- `GET /forecast`: multi-month demand forecast (default 6 months)
-- Retail analytics dashboard:
-  - total products
-  - total stores
-  - highest demand month
-  - top selling product
-- AI-style explanation text generated from historical vs predicted trend deltas
+## Local Setup
 
-## 3) Dataset
+Open 3 terminals from the project root.
 
-The ML service expects Kaggle-style columns:
+### 1. Start MongoDB
 
-- `date`
-- `store`
-- `item`
-- `sales`
+Use a local MongoDB server, for example:
 
-Use Kaggle `train.csv` from:
-https://www.kaggle.com/competitions/demand-forecasting-kernels-only
-
-Place it at:
-
-- `ml-service/data/train.csv`
-
-If this file is not present, the app auto-generates a synthetic retail dataset with strong seasonality so the full pipeline still runs.
-
-## 4) Project Structure
-
-```text
-project-root/
-package.json
-package-lock.json
-server.js
-config/
-controllers/
-models/
-routes/
-services/
-backend/
-frontend/
-ml-service/
+```bash
+mongodb://localhost:27017
 ```
 
-## 5) Run Locally
+The backend expects:
 
-Open 3 terminals from project root.
+```env
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB_NAME=seasonal_demand_forecasting
+```
 
-### A) Start ML Service
+### 2. Start ML Service
 
 ```bash
 cd ml-service
 python -m venv .venv
 # Windows
-.venv\\Scripts\\activate
+.venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
 
 Runs on `http://localhost:8000`.
 
-### B) Start Backend
+### 3. Start Backend
 
 ```bash
-npm install
-copy .env.example .env
-npm start
-```
-
-Runs on `http://localhost:5000`.
-
-### C) Start Frontend
-
-```bash
-cd frontend
+cd backend
 npm install
 copy .env.example .env
 npm run dev
 ```
 
+Runs on `http://localhost:5000`.
+
+Required backend env values:
+
+```env
+PORT=5000
+CORS_ORIGIN=http://localhost:5173
+ML_SERVICE_URL=http://localhost:8000
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DB_NAME=seasonal_demand_forecasting
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+If `OPENAI_API_KEY` is omitted, the AI endpoints fall back to deterministic business explanations.
+
+### 4. Start Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
 Runs on `http://localhost:5173`.
 
-## 6) API Examples
+## Sample Data
 
-### Predict
+A ready-to-upload retail dataset is included at:
 
-```http
-POST /api/predict
-Content-Type: application/json
+- `sample-data/retail-sales-upload.csv`
 
-{
-  "product": "Jacket",
-  "month": "December",
-  "year": 2026,
-  "store": "Store-1"
-}
+Required upload schema:
+
+```csv
+date,store,item,sales
+2025-01-01,Store-1,Jacket,43
 ```
 
-### Multi-month Forecast
+## Main Routes
 
-```http
-GET /api/forecast?item=Jacket&horizon=6&start_month=October&start_year=2026
-```
+- `/` home
+- `/auth` store login and create account
+- `/dashboard`
+- `/forecast`
+- `/confidence`
+- `/reorder`
+- `/risk`
+- `/accuracy`
+- `/ai-workspace`
 
-### Sales History
+## Core API Surface
 
-```http
-GET /api/sales-history?item=Jacket&months=24
-```
+### Auth
 
-## 7) Notes
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
 
-- Regression features include `month`, `day`, `year`, `day_of_week`, `is_weekend`, `store_id`, and `item_id`.
-- Forecasting is performed at daily granularity and aggregated to monthly demand.
-- PostgreSQL was kept optional; this demo uses in-memory dataframe processing for fast setup.
+### Forecasting and Retail Analytics
 
-## 8) Deploy on Render
+- `POST /api/predict`
+- `GET /api/forecast`
+- `GET /api/sales-history`
+- `GET /api/analytics`
+- `GET /api/catalog`
+- `GET /api/accuracy`
+- `POST /api/reorder-recommendation`
+- `GET /api/risk-dashboard`
+- `POST /api/dataset`
 
-This repo includes a [`render.yaml`](./render.yaml) blueprint for a three-service deployment:
+### AI Endpoints
 
-- `retail-demand-frontend` as a static site
-- `retail-demand-backend` as a Node web service
-- `retail-demand-ml-service` as a Python web service
+- `POST /api/ai/insights`
+- `POST /api/ai/inventory-advice`
+- `POST /api/ai/query`
+- `POST /api/ai/data-quality`
+- `POST /api/ai/report`
+- `POST /api/ai/story`
+- `POST /api/ai/metric-explanation`
+- `POST /api/ai/chat`
+- `GET /api/ai/chat/history`
+- `DELETE /api/ai/chat/history`
 
-Steps:
+## Notes
 
-1. Push the repo to GitHub.
-2. In Render, create a new Blueprint instance from the repo.
-3. Render will provision all 3 services and wire these env vars automatically:
-   - `VITE_API_BASE_URL`
-   - `ML_SERVICE_URL`
-   - `CORS_ORIGIN`
+- The ML service can generate synthetic retail training data if `ml-service/data/train.csv` is missing.
+- Forecasting remains model-driven; the LLM layer explains results and generates recommendations.
+- AI chat is report-aware and can use active forecast/report context from the page.
+- AI chat history is persisted per logged-in retail store in MongoDB.
+- The forecast report panel can export a manager-facing PDF from the frontend.
+- Uploading a CSV replaces the active in-memory dataset used by the running ML service.
 
-Deployment notes:
+## Feature Documentation
 
-- The frontend accepts either `https://your-backend-host` or `https://your-backend-host/api` for `VITE_API_BASE_URL`.
-- The ML service now honors `PORT`, which managed platforms like Render inject automatically.
-- If you want production-grade Python serving later, swap `python app.py` for Gunicorn and add it to `requirements.txt`.
-
-## 9) Deploy on SnapDeploy
-
-SnapDeploy expects the deployable Node service to be present at the repository root. This repo now exposes the backend from the root with:
-
-- `package.json`
-- `server.js`
-- `routes/`
-- `controllers/`
-- `models/`
-- `config/`
-
-Required backend environment variables:
-
-- `PORT`
-- `ML_SERVICE_URL`
-- `CORS_ORIGIN`
-
-The current backend does not use MongoDB, Cloudinary, or JWT-based authentication, so there are no required `MONGO_*`, `CLOUDINARY_*`, or `JWT_*` variables for this project.
+Detailed functional coverage is in [FEATURES.md](FEATURES.md).

@@ -4,45 +4,41 @@ import {
   fetchAnalytics,
   fetchCatalog,
   fetchForecast,
-  fetchSalesHistory
+  fetchRiskDashboard,
+  fetchSalesHistory,
 } from "../api/client.js";
 import AIInsightPanel from "../components/AIInsightPanel.jsx";
+import AIInventoryAdvisor from "../components/AIInventoryAdvisor.jsx";
+import AIReportPanel from "../components/AIReportPanel.jsx";
+import AIStoryPanel from "../components/AIStoryPanel.jsx";
 import AskDataPanel from "../components/AskDataPanel.jsx";
-import AccuracyPanel from "../components/AccuracyPanel.jsx";
 import DatasetUpload from "../components/DatasetUpload.jsx";
-import ForecastTable from "../components/ForecastTable.jsx";
 import ForecastChatAssistant from "../components/ForecastChatAssistant.jsx";
-import KpiCards from "../components/KpiCards.jsx";
-import SalesChart from "../components/SalesChart.jsx";
 
-function Dashboard() {
+function AIWorkspace() {
   const [catalog, setCatalog] = useState({ items: [], stores: [] });
   const [analytics, setAnalytics] = useState(null);
   const [history, setHistory] = useState([]);
   const [forecast, setForecast] = useState([]);
   const [accuracy, setAccuracy] = useState(null);
+  const [risk, setRisk] = useState(null);
   const [selectedItem, setSelectedItem] = useState("");
   const [selectedStore, setSelectedStore] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [accuracyError, setAccuracyError] = useState("");
 
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setLoading(true);
         setError("");
-
         const [catalogData, analyticsData] = await Promise.all([
           fetchCatalog(),
-          fetchAnalytics()
+          fetchAnalytics(),
         ]);
-
-        const defaultItem = catalogData.items?.[0] || "";
-
         setCatalog(catalogData);
         setAnalytics(analyticsData);
-        setSelectedItem(defaultItem);
+        setSelectedItem(catalogData.items?.[0] || "");
       } catch (requestError) {
         setError(requestError.response?.data?.error || requestError.message);
       } finally {
@@ -54,62 +50,67 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    const loadSeries = async () => {
+    const loadAiContext = async () => {
       if (!selectedItem) {
         return;
       }
 
       try {
-        const [historyData, forecastData, accuracyResult] = await Promise.allSettled([
+        setError("");
+        const [historyData, forecastData, accuracyData, riskData] = await Promise.allSettled([
           fetchSalesHistory({
             item: selectedItem,
             store: selectedStore || undefined,
-            months: 24
+            months: 24,
           }),
           fetchForecast({
             item: selectedItem,
             store: selectedStore || undefined,
-            horizon: 6
+            horizon: 6,
           }),
           fetchAccuracy({
             item: selectedItem,
             store: selectedStore || undefined,
-            months: 6
-          })
+            months: 6,
+          }),
+          fetchRiskDashboard({
+            store: selectedStore || undefined,
+            current_stock: 250,
+            lead_time_days: 14,
+            holiday_boost: 0,
+          }),
         ]);
 
-        if (historyData.status !== "fulfilled" || forecastData.status !== "fulfilled") {
-          throw historyData.reason || forecastData.reason;
+        if (historyData.status === "fulfilled") {
+          setHistory(historyData.value.history || []);
         }
-
-        setHistory(historyData.value.history || []);
-        setForecast(forecastData.value.forecast || []);
-
-        if (accuracyResult.status === "fulfilled") {
-          setAccuracy(accuracyResult.value);
-          setAccuracyError("");
+        if (forecastData.status === "fulfilled") {
+          setForecast(forecastData.value.forecast || []);
+        }
+        if (accuracyData.status === "fulfilled") {
+          setAccuracy(accuracyData.value);
         } else {
           setAccuracy(null);
-          setAccuracyError(
-            accuracyResult.reason?.response?.data?.error ||
-            accuracyResult.reason?.message ||
-            "Accuracy metrics are unavailable for the current ML service."
-          );
+        }
+        if (riskData.status === "fulfilled") {
+          setRisk(riskData.value);
+        } else {
+          setRisk(null);
         }
       } catch (requestError) {
         setError(requestError.response?.data?.error || requestError.message);
       }
     };
 
-    loadSeries();
+    loadAiContext();
   }, [selectedItem, selectedStore]);
 
   if (loading) {
-    return <p className="status">Loading dashboard...</p>;
+    return <p className="status">Loading AI workspace...</p>;
   }
 
   const nextForecast = forecast[0];
-  const dashboardInsightPayload = nextForecast
+  const forecastInsightPayload = nextForecast
     ? {
         item: selectedItem,
         store: selectedStore || "All Stores",
@@ -125,36 +126,80 @@ function Dashboard() {
         accuracy: accuracy?.metrics || null,
       }
     : null;
+  const storyPayload = selectedItem
+    ? {
+        item: selectedItem,
+        store: selectedStore || "All Stores",
+        history,
+      }
+    : null;
+  const reportPayload = nextForecast
+    ? {
+        prediction: nextForecast
+          ? {
+              item: selectedItem,
+              store: selectedStore || "All Stores",
+              month_name: nextForecast.month?.split(" ")?.[0],
+              year: nextForecast.year,
+              predicted_sales: nextForecast.predicted_sales,
+              lower_bound: nextForecast.lower_bound,
+              upper_bound: nextForecast.upper_bound,
+            }
+          : null,
+        forecast,
+        accuracy: accuracy?.metrics || null,
+      }
+    : null;
+  const inventoryPayload = risk
+    ? {
+        type: "risk",
+        store: risk.store,
+        monthName: risk.month_name,
+        year: risk.year,
+        summary: {
+          stockoutItems: risk.summary?.stockout_items,
+          overstockItems: risk.summary?.overstock_items,
+          balancedItems: risk.summary?.balanced_items,
+        },
+        items: (risk.items || []).map((row) => ({
+          item: row.item,
+          inventoryRisk: row.inventory_risk,
+          stockoutRisk: row.stockout_risk,
+          predictedSales: row.predicted_sales,
+          recommendedOrderQuantity: row.recommended_order_quantity,
+        })),
+      }
+    : null;
   const chatReportContext = {
     selectedItem,
     selectedStore: selectedStore || "All Stores",
     highestDemandMonth: analytics?.highest_demand_month,
     nextForecast,
     accuracy: accuracy?.metrics || null,
+    topRiskItems: risk?.items?.slice(0, 3) || [],
   };
 
   return (
-    <section className="stack-xl dashboard-shell">
+    <section className="stack-xl">
       {error && <p className="status error">{error}</p>}
 
       <section className="page-hero card">
         <div>
-          <p className="section-label">Overview</p>
-          <h2>Demand planning in one workspace</h2>
+          <p className="section-label">AI Workspace</p>
+          <h2>One place for every AI planning output</h2>
           <p className="section-copy">
-            Monitor current sales patterns, scan the forecast, and validate model quality before making inventory decisions.
+            Explore explanations, advisory summaries, reports, storytelling, and conversational analysis from the current retail forecast context.
           </p>
         </div>
       </section>
 
       <DatasetUpload />
-      <KpiCards analytics={analytics} />
 
       <section className="card filter-card">
         <div className="section-heading">
           <div>
-            <p className="section-label">Dashboard Filters</p>
-            <h3>Focus the current view</h3>
+            <p className="section-label">Workspace Filters</p>
+            <h3>Select the planning context</h3>
           </div>
         </div>
         <div className="filters-inline">
@@ -162,21 +207,16 @@ function Dashboard() {
             <label>Product</label>
             <select value={selectedItem} onChange={(event) => setSelectedItem(event.target.value)}>
               {catalog.items.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
+                <option key={item} value={item}>{item}</option>
               ))}
             </select>
           </div>
-
           <div>
             <label>Store</label>
             <select value={selectedStore} onChange={(event) => setSelectedStore(event.target.value)}>
               <option value="">All Stores</option>
               {catalog.stores.map((store) => (
-                <option key={store} value={store}>
-                  {store}
-                </option>
+                <option key={store} value={store}>{store}</option>
               ))}
             </select>
           </div>
@@ -185,23 +225,12 @@ function Dashboard() {
 
       <AskDataPanel selectedItem={selectedItem} selectedStore={selectedStore} />
       <ForecastChatAssistant item={selectedItem} store={selectedStore} reportContext={chatReportContext} />
-      <SalesChart historicalData={history} forecastData={forecast} />
-      <AIInsightPanel payload={dashboardInsightPayload} title="Forecast Insight Summary" />
-      {accuracyError && <p className="status warning">{accuracyError}</p>}
-      <AccuracyPanel accuracy={accuracy} />
-      <ForecastTable forecastRows={forecast} />
-
-      <article className="card explanation">
-        <h3>AI Trend Explanation</h3>
-        <p>
-          Seasonal demand historically peaks in <strong>{analytics?.highest_demand_month}</strong>. The model
-          combines date seasonality with product/store behavior, which is why the forecast adjusts when you
-          change item or store filters.
-        </p>
-        <p className="section-copy">Current data source: {analytics?.data_source || catalog?.data_source || "default dataset"}</p>
-      </article>
+      <AIInsightPanel payload={forecastInsightPayload} title="AI Forecast Insight" />
+      <AIInventoryAdvisor payload={inventoryPayload} title="AI Inventory Portfolio Advice" />
+      <AIStoryPanel payload={storyPayload} title="AI Demand Storytelling" />
+      <AIReportPanel payload={reportPayload} />
     </section>
   );
 }
 
-export default Dashboard;
+export default AIWorkspace;
